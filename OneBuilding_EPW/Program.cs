@@ -47,27 +47,32 @@ namespace OneBuilding_EPW
 
             //var testZips = zipUrls.Take(10);
 
-            foreach (var url in zipUrls)
-            {
-                Console.WriteLine($"Now thread {System.Threading.Thread.CurrentThread.ManagedThreadId} extracting: \n\t{url.Split("/").Last()}\n");
-                var result = DownloadAndRead(url, tempFd);
-                if (!string.IsNullOrEmpty(result.name))
-                {
-                    csvStrings.Add($"{result.name},{result.Lat},{result.Lon},{url}");
-                }
-            }
-            //Parallel.ForEach(zipUrls, (url) =>
+            //foreach (var url in zipUrls)
             //{
             //    Console.WriteLine($"Now thread {System.Threading.Thread.CurrentThread.ManagedThreadId} extracting: \n\t{url.Split("/").Last()}\n");
             //    var result = DownloadAndRead(url, tempFd);
-            //    if (!string.IsNullOrEmpty( result.name))
+            //    if (!string.IsNullOrEmpty(result.name))
             //    {
             //        csvStrings.Add($"{result.name},{result.Lat},{result.Lon},{url}");
             //    }
-                
-            //});
+            //}
 
-          
+            Parallel.ForEach(
+                zipUrls, 
+                new ParallelOptions { MaxDegreeOfParallelism = 2 }, 
+                (url) =>
+                {
+                    Console.WriteLine($"Now thread {System.Threading.Thread.CurrentThread.ManagedThreadId} extracting: \n\t{url.Split("/").Last()}\n");
+                    var result = DownloadAndRead(url, tempFd);
+                    if (!string.IsNullOrEmpty(result.name))
+                    {
+                        csvStrings.Add($"{result.name},{result.Lat},{result.Lon},{url}");
+                    }
+
+                }
+                );
+
+
 
 
             var EpwZipUrlsCsv = Path.Combine(fd, "EpwZipUrls.csv");
@@ -173,18 +178,27 @@ namespace OneBuilding_EPW
 
             using (WebClient webClient = new WebClient())
             {
-                webClient.DownloadFile(new Uri(link), temp);
-                if (File.Exists(temp))
+                try
                 {
-                    var result = ReadZip(temp);
+                    webClient.DownloadFile(new Uri(link), temp);
+                    if (File.Exists(temp))
+                    {
+                        var result = ReadZip(temp);
 
-                    //File.Delete(temp);
-                    return (name, result.Lat, result.Lon);
+                        //File.Delete(temp);
+                        return (name, result.Lat, result.Lon);
+                    }
+                    else
+                    {
+                        return ("", -1, -1);
+                    }
                 }
-                else
+                catch (Exception)
                 {
                     return ("", -1, -1);
+                    //throw;
                 }
+               
             }
 
            
